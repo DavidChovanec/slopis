@@ -3,6 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <title>ZType SK – Strieľajúca loď</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+
   <style>
     body {
       margin: 0;
@@ -85,6 +88,7 @@
       color: black;
       border: none;
       border-radius: 10px;
+      margin: 10px
     }
     #gameOver p {
       font-size: 20px;
@@ -105,14 +109,77 @@
         transform: scale(1.5);
       }
     }
+    
+    #history {
+  position: relative;
+  width: 400px;
+  height: 700px;
+  border: 2px solid white;
+  background-color: rgba(0, 0, 0, 0.8);
+  overflow-y: auto;
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+
+#history h1 {
+  margin-bottom: 20px;
+  font-size: 28px;
+}
+
+#historyList li {
+  background-color: rgba(255, 255, 255, 0.1);
+  border: 1px solid white;
+  border-radius: 12px;
+  padding: 15px;
+  margin-bottom: 10px;
+  width: 100%;
+  text-align: left;
+  font-size: 18px;
+  box-shadow: 0 2px 6px rgba(255, 255, 255, 0.2);
+  transition: transform 0.2s ease;
+}
+
+
+#historyList li:hover {
+  transform: scale(1.02);
+  background-color: rgba(255, 255, 255, 0.15);
+}
+
+#history button {
+  margin-top: 20px;
+  font-size: 20px;
+  padding: 10px 20px;
+  background-color: white;
+  color: black;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+#history button:hover {
+  background-color: #ddd;
+}
+
   </style>
   <link href="https://fonts.googleapis.com/css2?family=Orbitron&display=swap" rel="stylesheet">
 </head>
 <body>
-  <div id="menu">
-    <h1>SLOPIS</h1>
-    <button onclick="startGame()">HRAŤ</button>
-  </div>
+    <div id="menu">
+        <h1>SLOPIS</h1>
+        <button onclick="startGame()">HRAŤ</button>
+        <button onclick="showHistory()">História hier</button>
+      </div>
+      
+      <div id="history">
+        <ul id="historyList" style="display: none;"></ul>
+        <canvas id="historyChart" width="360" height="200" style="margin: 20px 0;"></canvas>
+        <button onclick="backToMenu()">Späť do menu</button>
+      </div>
+      
 
   <div id="game">
     <div id="scoreboard">Skóre: 0 | Úroveň: 1</div>
@@ -128,10 +195,36 @@
   </div>
 
   <script>
-    const words = [
-      "auto", "strom", "škola", "dom", "ryba", "mama", "tata", "hra", "zrak", "kniha",
-      "pero", "hračka", "slovo", "kvet", "slnko", "voda", "med", "pes", "mačka", "hrať"
+    const easyWords = [
+  "oko", "ujo", "ona", "pes", "dom", "rok", "rys", "ves", "osa", "les", "hra"
     ];
+    function getWordByLevel(level) {
+  let pool = [...easyWords];
+  if (level >= 4) pool = pool.concat(mediumWords);
+  if (level >= 11) pool = pool.concat(hardWords);
+  return pool[Math.floor(Math.random() * pool.length)];
+}
+
+const mediumWords = [
+  "ruka", "lampa", "slovo", "voda", "more", "kvet", "hory", "sirup", "mlieko", "list"
+    ];
+    function getWordByLevel(level) {
+  let pool = [...easyWords];
+  if (level >= 4) pool = pool.concat(mediumWords);
+  if (level >= 11) pool = pool.concat(hardWords);
+  return pool[Math.floor(Math.random() * pool.length)];
+}
+
+const hardWords = [
+  "slon", "mačka", "kamarat", "kniha", "cesta", "chlieb", "taburet", "počasie", "šarkan", "autobus",
+  "bublina", "špagety", "žubrienka", "raketa", "dinosaurus", "kolobežka", "bublinka"
+    ];
+    function getWordByLevel(level) {
+  let pool = [...easyWords];
+  if (level >= 4) pool = pool.concat(mediumWords);
+  if (level >= 11) pool = pool.concat(hardWords);
+  return pool[Math.floor(Math.random() * pool.length)];
+}
 
     const shipImages = [
       "https://cdn-icons-png.flaticon.com/512/3306/3306604.png",
@@ -172,7 +265,7 @@
     }
 
     function spawnEnemy() {
-      const wordText = words[Math.floor(Math.random() * words.length)];
+        const wordText = getWordByLevel(level);
       const imageUrl = shipImages[Math.floor(Math.random() * shipImages.length)];
       const enemy = document.createElement("div");
       enemy.className = "enemy";
@@ -243,11 +336,13 @@
             activeBullets.splice(i, 1);
             activeEnemies.splice(j, 1);
             score++;
+           
+
 
             if (score % 5 === 0) {
               level++;
               speed += 0.3;
-              if (spawnIntervalTime > 500) spawnIntervalTime -= 100;
+              if (spawnIntervalTime > 500) spawnIntervalTime -= 75;
               clearInterval(spawnInterval);
               spawnInterval = setInterval(spawnEnemy, spawnIntervalTime);
             }
@@ -275,13 +370,16 @@
       gameArea.style.display = "none";
       finalScore.textContent = "Tvoje skóre: " + score;
       finalLevel.textContent = "Tvoja úroveň: " + level;
+      saveGameToHistory(score, level);
       gameOverScreen.style.display = "flex";
     }
 
     function backToMenu() {
-      gameOverScreen.style.display = "none";
-      menu.style.display = "flex";
+     gameOverScreen.style.display = "none";
+     document.getElementById("history").style.display = "none";
+     menu.style.display = "flex";
     }
+
 
     function updateScoreboard() {
       scoreboard.textContent = `Skóre: ${score} | Úroveň: ${level}`;
@@ -356,6 +454,8 @@
         gameArea.removeChild(bullet);
         activeEnemies.splice(i, 1);
         score++;
+        
+
 
         if (score % 5 === 0) {
           level++;
@@ -373,7 +473,98 @@
   }
 
   input.value = "";
+
+
 }
+function saveGameToHistory(score, level) {
+  const history = JSON.parse(sessionStorage.getItem("gameHistory")) || [];
+  const now = new Date();
+  history.push({  // <-- zmena tu!
+    date: now.toLocaleString("sk-SK"),
+    score: score,
+    level: level
+  });
+  sessionStorage.setItem("gameHistory", JSON.stringify(history));
+}
+
+
+
+
+function showHistory() {
+  menu.style.display = "none";
+  gameOverScreen.style.display = "none";
+  document.getElementById("history").style.display = "flex";
+
+  const list = document.getElementById("historyList");
+  list.innerHTML = "";
+
+  const history = JSON.parse(sessionStorage.getItem("gameHistory")) || [];
+  if (history.length === 0) {
+    const li = document.createElement("li");
+    li.textContent = "Zatiaľ si neodohral žiadnu hru.";
+    list.appendChild(li);
+  } else {
+    history.forEach((entry, index) => {
+      const li = document.createElement("li");
+      li.textContent = ` Skóre: ${entry.score}, Úroveň: ${entry.level}`;
+      list.appendChild(li);
+    });
+  }
+
+  drawChart();
+
+}
+let chartInstance = null;
+
+function drawChart() {
+  const ctx = document.getElementById('historyChart').getContext('2d');
+  const history = JSON.parse(sessionStorage.getItem("gameHistory")) || [];
+
+  if (chartInstance) {
+    chartInstance.destroy();
+  }
+
+  const labels = history.map((_, i) => `Hra #${i + 1}`);
+  const scores = history.map(entry => entry.score);
+
+  chartInstance = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: 'Skóre (správne slová)',
+        data: scores,
+        borderColor: 'rgba(75, 192, 192, 1)',
+        backgroundColor: 'transparent',
+        borderWidth: 2,
+        tension: 0.3,
+        pointBackgroundColor: 'rgba(75, 192, 192, 1)',
+        pointRadius: 4
+      }]
+    },
+    options: {
+      responsive: true,
+      scales: {
+        y: {
+          beginAtZero: true,
+          title: {
+            display: true,
+            text: 'Počet správnych slov'
+          }
+        },
+        x: {
+          title: {
+            display: true,
+            text: 'Číslo hry'
+          }
+        }
+      }
+    }
+  });
+}
+
+
+
 
 
 
